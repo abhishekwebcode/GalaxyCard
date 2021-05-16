@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 import React, {useEffect, useState} from 'react';
-import {Button, StyleSheet, Text, View,} from 'react-native';
+import {Button, StyleSheet, Text, View,Image} from 'react-native';
 import {Camera, useCameraDevices} from 'react-native-vision-camera';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
@@ -47,6 +47,7 @@ const CameraComponentStyles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: '#B8D2EC',
     },
+    imageElement: {width:'100%',height:'100%',alignItems:'center',justifyContent:'center',backgroundColor: '#B8D2EC',}
 });
 
 class CameraComponent extends React.Component {
@@ -152,6 +153,13 @@ class ResultComponent extends React.Component {
         this.state={};
     }
     render() {
+        if (this.photoObject) {
+            return <Image source={{uri:'file://'+this.photoObject.path}}
+                style={CameraComponentStyles.imageElement}
+            >
+                
+            </Image>
+        }
         return <Text>Detecting Faces and Loading....</Text>
     }
 }
