@@ -12,7 +12,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 
 const Stack = createStackNavigator();
-
+const RNFS = require('react-native-fs');
 const App = () => {
     return (
         <NavigationContainer>
@@ -63,6 +63,7 @@ class CameraComponent extends React.Component {
             permissionGranted:null,
             devicesAvailable:null,
             cameraReady:false,
+            disAllowCapture:true,
         };
     }
 
@@ -101,11 +102,13 @@ class CameraComponent extends React.Component {
     }
 
     async takePhoto() {
+        if (this.disAllowCapture===true) return;
         const photo = await this.camera.current.takePhoto({flash: 'off'});
         this.navigation.navigate("SecondScreen",{photoObject:photo});
     }
 
     cameraStarted() {
+        this.setState({disAllowCapture:false})
         console.log(`started`)
     }
 
@@ -144,24 +147,51 @@ class CameraComponent extends React.Component {
 }
 
 class ResultComponent extends React.Component {
+
+    async handleFaceDetection() {
+        const base64 = await RNFS.readFile(this.photoPath,'base64');
+        this.setState({uploading:true})
+        const result = await fetch(`https://en5drliorohda.x.pipedream.net`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fileName:this.fileName,
+                imageData:base64,
+            })
+    });
+        this.setState({finished:true})
+    }
+    render() {
+        if (this.finished===true) {
+            return <Image source={{uri:this.photoPath}}
+                style={CameraComponentStyles.imageElement}
+            >
+                
+            </Image>
+        }
+        if (this.uploading===true) {
+            return <Text>Detecting....</Text>    
+        }
+        return <Text>Detecting Faces and Loading....</Text>
+    }
     constructor(props) {
         super(props);
         this.navigation=props.navigation;
         this.route=props.route;
         this.photoObject = this.route.params.photoObject;
         console.log(this.photoObject);
-        this.state={};
+        this.photoPath = 'file://'+this.photoObject.path;
+        this.fileName = this.photoObject.path.split('/').pop();
+        this.state={
+            uploading:false,
+            finished:false,
+        };
+        this.handleFaceDetection();
     }
-    render() {
-        if (this.photoObject) {
-            return <Image source={{uri:'file://'+this.photoObject.path}}
-                style={CameraComponentStyles.imageElement}
-            >
-                
-            </Image>
-        }
-        return <Text>Detecting Faces and Loading....</Text>
-    }
+    
 }
 
 
