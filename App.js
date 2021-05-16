@@ -54,7 +54,7 @@ class CameraComponent extends React.Component {
     constructor(props) {
         super(props);
         this.navigation=props.navigation;
-    
+
         console.log(`INPUT`,Object.keys(props));
         this.camera = React.createRef();
         this.device = null;
@@ -67,7 +67,7 @@ class CameraComponent extends React.Component {
         };
     }
 
-    
+
     checkPermission() {
         Camera.getCameraPermissionStatus().then(async () => {
             const permission = await Camera.requestCameraPermission();
@@ -134,10 +134,10 @@ class CameraComponent extends React.Component {
                     onInitialized={()=>this.cameraStarted()}
                     ref={this.camera}
                 />
-                <Button style={CameraComponentStyles.captureElement}  title="Capture Face" 
+                <Button style={CameraComponentStyles.captureElement}  title="Capture Face"
                     onPress={()=>this.takePhoto()}
                 >
-                    
+
                 </Button>
             </View>)
         }
@@ -148,32 +148,60 @@ class CameraComponent extends React.Component {
 
 class ResultComponent extends React.Component {
 
-    async handleFaceDetection() {
+    async handleFaceDetection(componentThis) {
         const base64 = await RNFS.readFile(this.photoPath,'base64');
-        this.setState({uploading:true})
-        const result = await fetch(`https://en5drliorohda.x.pipedream.net`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                fileName:this.fileName,
-                imageData:base64,
-            })
-    });
-        this.setState({finished:true})
+        componentThis.setState({uploading:true})
+        try {
+            console.log(`SENDING REQ`)
+            const url = `http://54.82.125.49:8080/aws`
+            //const url = `http://localhost:8080/aws`
+            const result = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    fileName: this.fileName,
+                    imageData: base64,
+                    key: '8Hh7sqGcb7UvQ2nj',
+                })
+            });
+            const resultJson = await result.json();
+            if (resultJson.success===false) {
+                throw new Error('SERVER ERROR');
+            }
+            const newState = {finished:true};
+            const base64Output = resultJson.outputImage;
+            newState.base64NewURI = `data:image/jpg;base64,${base64Output}`;
+            componentThis.setState(newState);
+
+            // DEBUG
+        } catch(e) {
+            console.error(e);
+            componentThis.setState({gotError: true})
+        }
     }
     render() {
-        if (this.finished===true) {
-            return <Image source={{uri:this.photoPath}}
-                style={CameraComponentStyles.imageElement}
-            >
-                
+        if (this.state.gotError===true) {
+            return (<View style={CameraComponentStyles.screen}>
+                <Image source={{uri:this.photoPath}}
+                       style={CameraComponentStyles.cameraElement}
+                >
+                </Image>
+                <Text style={CameraComponentStyles.captureElement}>
+                    There was an error detecting only 1 face, showing original image
+                </Text>
+            </View>)
+        }
+        if (this.state.finished===true) {
+            return <Image source={{uri:this.state.base64NewURI}}
+                    style={CameraComponentStyles.imageElement}
+                >
             </Image>
         }
-        if (this.uploading===true) {
-            return <Text>Detecting....</Text>    
+        if (this.state.uploading===true) {
+            return <Text styles={CameraComponentStyles.screen}>Detecting....</Text>
         }
         return <Text>Detecting Faces and Loading....</Text>
     }
@@ -186,31 +214,18 @@ class ResultComponent extends React.Component {
         this.photoPath = 'file://'+this.photoObject.path;
         this.fileName = this.photoObject.path.split('/').pop();
         this.state={
+            intial:true,
             uploading:false,
             finished:false,
+            gotError:false,
+            base64NewURI:null,
         };
-        this.handleFaceDetection();
+        this.handleFaceDetection(this).then(()=>{
+            this.setState({});
+        });
     }
-    
+
 }
 
 
 export default App;
-
-const takenPhoto = {
-    "height": 480, 
-    "isRawPhoto": false,
-     "metadata": {"Orientation": 6, "{Exif}":
-      {"ApertureValue": 0, "BrightnessValue": 0, "ColorSpace": 65535,
-       "DateTimeDigitized": "2021:05:16 11:20:34", "DateTimeOriginal": null, 
-       "ExifVersion": "0210", "ExposureBiasValue": 0, "ExposureMode": 0, "ExposureProgram": 0,
-        "ExposureTime": 0.01, "FNumber": 2.8, "Flash": 0, "FocalLenIn35mmFilm": 0, "FocalLength": 5,
-         "ISOSpeedRatings": [Array], "LensMake": null, "LensModel": null, "LensSpecification": [Array],
-          "MeteringMode": 0, "OffsetTime": null, "OffsetTimeDigitized": null, "OffsetTimeOriginal": null,
-           "PixelXDimension": 640, "PixelYDimension": 480, "SceneType": 1, "SensingMethod": 1, "ShutterSpeedValue": 0, 
-           "SubjectArea": [Array], "SubsecTimeDigitized": "0", "SubsecTimeOriginal": "0", "WhiteBalance": 0}, "{TIFF}": 
-           {"DateTime": "2021:05:16 11:20:34", "Make": "Google", "Model": "sdk_gphone_x86", "ResolutionUnit": 2, 
-           "Software": null, "XResolution": 72, "YResolution": 72}},
-            "path": "/data/user/0/com.galaxycard/cache/mrousavy4579955857631926306.jpg",
-             "width": 640
-}
