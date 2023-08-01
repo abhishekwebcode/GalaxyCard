@@ -1,6 +1,6 @@
 # GalaxyCard
 
-Backend Code Url: https://github.com/abhishekwebcode/galaxyCardServer/
+
 
 React Native app using version 0.64
 The app has 2 screens.
